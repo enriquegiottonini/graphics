@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <assert.h>
-#include "utils.h"
 
 int main() {
-    assert(1 == 1);
+    assert(1 == 2);
     sayHi("Test");
     return 0;
 }
