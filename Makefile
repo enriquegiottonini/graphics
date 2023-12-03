@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Wextra
-LDFLAGS = -lGL -lGLU -lglut
+CFLAGS = 
+LDFLAGS = -lGL -lGLU -lglut -lm
 
 
 .PHONY: all build run test clean

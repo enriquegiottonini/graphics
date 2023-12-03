@@ -1,85 +1,245 @@
 #include "utils.h"
 
-GLint winWidth = 600, winHeight = 600; // Initial display-window size.
+struct Triangle* trianglesMemory;
+int trianglesCount;
 
-GLfloat x0 = 100.0, y0 = 50.0, z0 = 50.0; // Viewing-coordinate origin.
-GLfloat xref = 50.0, yref = 50.0, zref = 0.0; // Look-at point.
-GLfloat Vx = 0.0, Vy = 1.0, Vz = 0.0; // View-up vector
-
-/* Set coordinate limits for the clipping window: */
-GLfloat xwMin = -40.0, ywMin = -60.0, xwMax = 40.0, ywMax = 60.0;
-
-/* Set positions for near and far clipping planes: */
-GLfloat dnear = 25.0, dfar = 125.0;
-
-void init (void)
+void displayTri()
 {
-    glClearColor (1.0, 1.0, 1.0, 0.0);
-    glMatrixMode (GL_MODELVIEW);
-    gluLookAt (x0, y0, z0, xref, yref, zref, Vx, Vy, Vz);
-    glMatrixMode (GL_PROJECTION);
-    glFrustum (xwMin, xwMax, ywMin, ywMax, dnear, dfar);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glBegin(GL_LINES);
+	glColor3f(0.0f, 0.0f, 0.0f);
+
+    if (trianglesMemory == NULL)
+    {
+        trianglesMemory = readTrianglesFromFile("OBJETOS-3D/itokawa_f0049152.tri");
+        trianglesCount = linesInFile("OBJETOS-3D/itokawa_f0049152.tri");
+    }
+
+    project_onto_xy(trianglesMemory, trianglesCount, 1);
+    project_onto_xz(trianglesMemory, trianglesCount, 2);
+    project_onto_yz(trianglesMemory, trianglesCount, 3);
+    proyect_isometric(trianglesMemory, trianglesCount, 4);
+
+    glEnd();
+	glutSwapBuffers();
 }
 
-void displayFcn(void)
+float identityMatrix(float matrix[4][4])
 {
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    /* Set parameters for a square fill area. */
-    glColor3f (0.0, 1.0, 0.0);
-
-    // Panel 1
-    glViewport(0, winHeight / 2, winWidth / 2, winHeight / 2);
-    glPolygonMode(GL_FRONT, GL_FILL);
-    glPolygonMode(GL_BACK, GL_LINE);
-    glBegin(GL_QUADS);
-    glVertex3f(0.0, 0.0, 0.0);
-    glVertex3f(100.0, 0.0, 0.0);
-    glVertex3f(100.0, 100.0, 0.0);
-    glVertex3f(0.0, 100.0, 0.0);
-    glEnd();
-    glFlush();
-
-    // Panel 2
-    glViewport(winWidth / 2, winHeight / 2, winWidth / 2, winHeight / 2);
-    glPolygonMode(GL_FRONT, GL_FILL);
-    glPolygonMode(GL_BACK, GL_LINE);
-    glBegin(GL_QUADS);
-    glVertex3f(0.0, 0.0, 0.0);
-    glVertex3f(100.0, 0.0, 0.0);
-    glVertex3f(100.0, 100.0, 0.0);
-    glVertex3f(0.0, 100.0, 0.0);
-    glEnd();
-    glFlush();
-
-    // Panel 3
-    glViewport(0, 0, winWidth / 2, winHeight / 2);
-    glPolygonMode(GL_FRONT, GL_FILL);
-    glPolygonMode(GL_BACK, GL_LINE);
-    glBegin(GL_QUADS);
-    glVertex3f(0.0, 0.0, 0.0);
-    glVertex3f(100.0, 0.0, 0.0);
-    glVertex3f(100.0, 100.0, 0.0);
-    glVertex3f(0.0, 100.0, 0.0);
-    glEnd();
-    glFlush();
-
-    // Panel 4
-    glViewport(winWidth / 2, 0, winWidth / 2, winHeight / 2);
-    glPolygonMode(GL_FRONT, GL_FILL);
-    glPolygonMode(GL_BACK, GL_LINE);
-    glBegin(GL_QUADS);
-    glVertex3f(0.0, 0.0, 0.0);
-    glVertex3f(100.0, 0.0, 0.0);
-    glVertex3f(100.0, 100.0, 0.0);
-    glVertex3f(0.0, 100.0, 0.0);
-    glEnd();
-    glFlush();
+    for (int i=0; i<4; i++)
+        for (int j=0; j<4; j++)
+            matrix[i][j] = (i == j) ? 1 : 0;
 }
 
-void reshapeFcn (GLint newWidth, GLint newHeight)
+float orthonormalMatrix(float A[4][4], int plano)
 {
-    glViewport (0, 0, newWidth, newHeight);
-    winWidth = newWidth;
-    winHeight = newHeight;
+    float t[16] = {
+        (plano == 2 ? 0 : 1), (plano == 2 ? 1 : 0), 0, 0,
+        0, (plano == 0 ? 1 : 0), (plano == 0 ? 0 : 1), 0,
+        0, 0, 0, 0,
+        0, 0, 0, 1
+    };
+
+    for (int i=0; i<4; i++)
+        for (int j=0; j<4; j++)
+            A[i][j] = t[i*4 + j];
+}
+
+void isometricMatrix(float A[4][4], float a, float b, float c){
+	float I[16] = {
+		c/sqrt(a*a+c*c), 0, -a/sqrt(a*a+c*c), 0,
+		-a*b/sqrt((a*a+c*c)*(a*a+b*b+c*c)), sqrt((a*a+c*c)/(a*a+b*b+c*c)), -c*b/sqrt((a*a+c*c)*(a*a+b*b+c*c)), 0,
+		0,0,0,0,
+		0,0,0,1
+	};
+    for (int i=0; i<4; i++)
+        for (int j=0; j<4; j++)
+            A[i][j] = I[i*4 + j];
+}
+
+void project_onto_xy(struct Triangle* triangles, int lines, int window)
+{
+    float projectionMatrix[4][4];
+    identityMatrix(projectionMatrix);
+    orthonormalMatrix(projectionMatrix, 0);
+
+    struct Point min, max;
+
+
+    for (int i=0; i<lines; i++)
+    {
+        struct Triangle triangle = triangles[i];
+        struct Point a = matrixVectorMultiplication(projectionMatrix, triangle.a);
+        struct Point b = matrixVectorMultiplication(projectionMatrix, triangle.b);
+        struct Point c = matrixVectorMultiplication(projectionMatrix, triangle.c);
+        drawTriangle(a, b, c, window);
+    }
+}
+
+
+void project_onto_xz(struct Triangle* triangles, int lines, int window)
+{
+    float projectionMatrix[4][4];
+    identityMatrix(projectionMatrix);
+    orthonormalMatrix(projectionMatrix, 2);
+
+    for (int i=0; i<lines; i++)
+    {
+        struct Triangle triangle = triangles[i];
+        struct Point a = matrixVectorMultiplication(projectionMatrix, triangle.a);
+        struct Point b = matrixVectorMultiplication(projectionMatrix, triangle.b);
+        struct Point c = matrixVectorMultiplication(projectionMatrix, triangle.c);
+        drawTriangle(a, b, c, window);
+    }
+}
+
+void project_onto_yz(struct Triangle* triangles, int lines, int window)
+{
+    float projectionMatrix[4][4];
+    identityMatrix(projectionMatrix);
+    orthonormalMatrix(projectionMatrix, 1);
+
+    for (int i=0; i<lines; i++)
+    {
+        struct Triangle triangle = triangles[i];
+        struct Point a = matrixVectorMultiplication(projectionMatrix, triangle.a);
+        struct Point b = matrixVectorMultiplication(projectionMatrix, triangle.b);
+        struct Point c = matrixVectorMultiplication(projectionMatrix, triangle.c);
+        drawTriangle(a, b, c, window);
+    }
+}
+
+
+void proyect_isometric(struct Triangle* triangles, int lines, int window)
+{
+    float projectionMatrix[4][4];
+    identityMatrix(projectionMatrix);
+    isometricMatrix(projectionMatrix, 1, 1, 1);
+
+    for (int i=0; i<lines; i++)
+    {
+        struct Triangle triangle = triangles[i];
+        struct Point a = matrixVectorMultiplication(projectionMatrix, triangle.a);
+        struct Point b = matrixVectorMultiplication(projectionMatrix, triangle.b);
+        struct Point c = matrixVectorMultiplication(projectionMatrix, triangle.c);
+        drawTriangle(a, b, c, window);
+    }
+}
+
+
+void drawTriangle(struct Point a, struct Point b, struct Point c, int window)
+{
+    float dx, dy;
+    switch (window)
+    {
+        case 1:
+            dx = -0.5;
+            dy = 0.5;
+            break;
+        case 2:
+            dx = 0.5;
+            dy = 0.5;
+            break;
+        case 3:
+            dx = -0.5;
+            dy = -0.5;
+            break;
+        case 4:
+            dx = 0.5;
+            dy = -0.5;
+            break;
+    }
+
+    glVertex3f(a.x + dx, a.y + dy, 0);
+    glVertex3f(b.x + dx, b.y + dy, 0);
+    glVertex3f(c.x + dx, c.y + dy, 0);
+
+}
+
+void matrixMultiplication(float A[4][4], float B[4][4], float C[4][4])
+{
+    for (int i=0; i<4; i++)
+        for (int j=0; j<4; j++)
+            C[i][j] = A[i][0]*B[0][j] + A[i][1]*B[1][j] + A[i][2]*B[2][j] + A[i][3]*B[3][j];
+}
+
+struct Point matrixVectorMultiplication(float A[4][4], struct Point b)
+{
+    struct Point c;
+    c.x = A[0][0]*b.x + A[0][1]*b.y + A[0][2]*b.z + A[0][3];
+    c.y = A[1][0]*b.x + A[1][1]*b.y + A[1][2]*b.z + A[1][3];
+    c.z = A[2][0]*b.x + A[2][1]*b.y + A[2][2]*b.z + A[2][3];
+    return c;
+}
+
+struct Triangle* readTrianglesFromFile(const char* filename)
+{
+    FILE* file = fopen(filename, "r");
+    if (file == NULL)
+    {
+        printf("Failed to open file: %s\n", filename);
+        return;
+    }
+
+    if (strstr(filename, ".tri") != NULL)
+    {
+        char line[256];
+        int lines = linesInFile(filename);
+
+        struct Triangle* triangles = malloc(sizeof(struct Triangle) * lines);
+        int counter = 0;
+        while (fgets(line, sizeof(line), file))
+        {
+            struct Point a, b, c;
+            int result = sscanf(line, "%f %f %f %f %f %f %f %f %f", &a.x, &a.y, &a.z, &b.x, &b.y, &b.z, &c.x, &c.y, &c.z);
+            if (result == 9)
+            {
+                struct Triangle triangle = { a, b, c };
+                triangles[counter] = triangle;
+                counter++;
+            }
+        }
+        fclose(file);
+        return triangles;
+    }
+
+    printf("File format not supported: %s\n", filename);
+    return NULL;
+}
+
+
+int linesInFile(const char* filename)
+{
+    FILE* file = fopen(filename, "r");
+    if (file == NULL)
+    {
+        printf("Failed to open file: %s\n", filename);
+        return;
+    }
+
+    char line[256];
+    int counter = 0;
+    while (fgets(line, sizeof(line), file))
+    {
+        counter++;
+    }
+    fclose(file);
+    return counter;
+}
+
+void (*getDisplayFunc(const char* filename))(void)
+{
+    if (strstr(filename, ".tri") != NULL)
+    {
+        return displayTri;
+    }
+
+    printf("File format not supported: %s\n", filename);
+    return NULL;
+}
+
+void endTri()
+{
+    if (trianglesMemory != NULL)
+        free(trianglesMemory);
 }

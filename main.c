@@ -1,20 +1,24 @@
 // To run: make run
 // To test: make test
-
 #include "utils.h"
-
 
 int main (int argc, char** argv)
 {
-    GLint winWidth = 600, winHeight = 600; // Initial display-window size.
+    glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
+	glutInitWindowSize(WIDTH, HEIGHT);
+	glutCreateWindow("Proyecto Final");
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-    glutInit (&argc, argv);
-    glutInitDisplayMode (GLUT_SINGLE | GLUT_RGB);
-    glutInitWindowPosition (50, 50);
-    glutInitWindowSize (winWidth, winHeight);
-    glutCreateWindow ("Perspective View of A Square");
-    init ( );
-    glutDisplayFunc (displayFcn);
-    glutReshapeFunc (reshapeFcn);
-    glutMainLoop ( );
+    const char* itokawa = "OBJETOS-3D/itokawa_f0049152.tri";
+
+    const char* filename = itokawa;
+    void (*displayFunc)(void) = getDisplayFunc(filename);
+    
+    glutDisplayFunc(displayFunc);
+	glutMainLoop();
+
+    endTri();
+
+    return 0;
 }
