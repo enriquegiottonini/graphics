@@ -4,9 +4,10 @@ struct Triangle* trianglesMemory;
 struct Point* pointsMemory;
 int trianglesCount;
 int pointsCount;
+const char* filenameOk = "ola";
 
 void displayTri()
-{
+{   
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBegin(GL_LINES);
 	glColor3f(0.0f, 0.0f, 0.0f);
@@ -46,25 +47,56 @@ void displayObj()
     glBegin(GL_LINES);
     glColor3f(0.0f, 0.0f, 0.0f);
 
-    if (trianglesMemory == NULL)
-    {
-        trianglesMemory = readTrianglesFromFile("OBJETOS-3D/QueSoy2.obj");
-        trianglesCount = linesInFile("OBJETOS-3D/QueSoy2.obj");
+    if (pointsMemory == NULL) {
+        readPointsFromObj(filenameOk);
     }
 
-    if (pointsMemory == NULL && trianglesMemory != NULL)
-    {
-        pointsMemory = malloc(sizeof(struct Point) * trianglesCount * 3);
-        for (int i=0; i<trianglesCount; i++)
-        {
-            struct Triangle triangle = trianglesMemory[i];
-            pointsMemory[i*3] = triangle.a;
-            pointsMemory[i*3 + 1] = triangle.b;
-            pointsMemory[i*3 + 2] = triangle.c;
-        }
-
-        pointsCount = trianglesCount * 3;
+    if (strcmp(filenameOk, "OBJETOS-3D/QueSoy1.obj") == 0){
+        project_onto_plane(pointsMemory, pointsCount, 4, XY);
+        project_onto_plane(pointsMemory, pointsCount, 5, YZ);
+        project_onto_plane(pointsMemory, pointsCount, 6, XZ);
+        isometricProjection(pointsMemory, pointsCount, 7);
+    } else {
+        project_onto_plane(pointsMemory, pointsCount, 8, XY);
+        project_onto_plane(pointsMemory, pointsCount, 9, YZ);
+        project_onto_plane(pointsMemory, pointsCount, 10, XZ);
+        isometricProjection(pointsMemory, pointsCount, 11);
     }
+
+    glEnd();
+    glutSwapBuffers();
+}
+
+void displayEros()
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glBegin(GL_LINES);
+    glColor3f(0.0f, 0.0f, 0.0f);
+
+    if (pointsMemory == NULL) {
+        readPointsFromObj("OBJETOS-3D/eros022540.tab");
+    }
+    project_onto_plane(pointsMemory, pointsCount, 4, XY);
+    project_onto_plane(pointsMemory, pointsCount, 5, YZ);
+    project_onto_plane(pointsMemory, pointsCount, 6, XZ);
+    isometricProjection(pointsMemory, pointsCount, BOTTOM_RIGHT);
+
+    glEnd();
+    glutSwapBuffers();
+
+}
+
+void displayGeo()
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glBegin(GL_LINES);
+    glColor3f(0.0f, 0.0f, 0.0f);
+
+    if (pointsMemory == NULL) {
+        readPointsFromObj("OBJETOS-3D/1620geographos.tab");
+    }
+
+    printf("%d\n", pointsCount);
 
     project_onto_plane(pointsMemory, pointsCount, 4, XY);
     project_onto_plane(pointsMemory, pointsCount, 5, YZ);
@@ -73,6 +105,7 @@ void displayObj()
 
     glEnd();
     glutSwapBuffers();
+
 }
 
 float identityMatrix(float matrix[4][4])
@@ -111,87 +144,53 @@ void isometricMatrix(float A[4][4], float a, float b, float c){
     matrixMultiplication(copyA, I, A);
 }
 
-void getMinMaxInPlane(struct Point* points, int N, int plane, struct Point min, struct Point max)
+void getViewportMatrix(float mina, float maxa, float minb, float maxb, int window, int plane, float matrix[4][4])
 {
-    min.x = min.y = 1000000;
-    max.x = max.y = -1000000;
+    float tx = -mina;
+    float ty = -minb;
+    float sx = 1 / (maxa - mina);
+    float sy = 1 /  (maxb - minb);
 
-    for (int i=0; i<N; i++)
-    {
-        struct Point point = points[i];
-        switch (plane)
-        {
-            case XY:
-                if (point.x < min.x) min.x = point.x;
-                if (point.y < min.y) min.y = point.y;
-                if (point.x > max.x) max.x = point.x;
-                if (point.y > max.y) max.y = point.y;
-                break;
-            case YZ:
-                if (point.y < min.x) min.x = point.y;
-                if (point.z < min.y) min.y = point.z;
-                if (point.y > max.x) max.x = point.y;
-                if (point.z > max.y) max.y = point.z;
-                break;
-            case XZ:
-                if (point.x < min.x) min.x = point.x;
-                if (point.z < min.y) min.y = point.z;
-                if (point.x > max.x) max.x = point.x;
-                if (point.z > max.y) max.y = point.z;
-                break;
-        }
-    }
-}
-
-void getViewportMatrix(struct Point min, struct Point max, int plane, float viewportMatrix[4][4])
-{
-    float dx, dy;
-    float centerx = (max.x + min.x) / 2;
-    float centery = (max.y + min.y) / 2;
-
-    float sx = 1.0 / (max.x - min.x);
-    float sy = 1.0 / (max.y - min.y);
-
-    float T[4][4] = {
-        {1, 0, 0, -centerx},
-        {0, 1, 0, -centery},
-        {0, 0, 1, 0},
-        {0, 0, 0, 1}
-    };
-
-    float S[4][4] = {
+    float matrix1[4][4] = {
         {sx, 0, 0, 0},
         {0, sy, 0, 0},
         {0, 0, 1, 0},
         {0, 0, 0, 1}
     };
 
-    float T2[4][4] = {
-        {1, 0, 0, centerx},
-        {0, 1, 0, centery},
-        {0, 0, 1, 0},
-        {0, 0, 0, 1}
-    };
-
-    float TS[4][4];
-    matrixMultiplication(T, S, TS);
-
-    float TST2[4][4];
-    matrixMultiplication(TS, T2, TST2);
-
-    float copyViewportMatrix[4][4];
-    copyMatrix(viewportMatrix, copyViewportMatrix);
-    matrixMultiplication(copyViewportMatrix, TST2, viewportMatrix);
+    float matrixCopy[4][4];
+    copyMatrix(matrix, matrixCopy);
+    matrixMultiplication(matrix1, matrixCopy, matrix);
 }
 
 void project_onto_plane(struct Point* points, int N, int window, int plane)
 {
     float projectionMatrix[4][4];
     identityMatrix(projectionMatrix);
-
-    struct Point min, max;
-    getMinMaxInPlane(points, N, plane, min, max);
-    //getViewportMatrix(min, max, plane, projectionMatrix);
+    float mina, maxa, minb, maxb;
+    switch (plane)
+    {
+        case XY:
+            mina = getXMin(points, N);
+            maxa = getXMax(points, N);
+            minb = getYMin(points, N);
+            maxb = getYMax(points, N);
+            break;
+        case YZ:
+            mina = getYMin(points, N);
+            maxa = getYMax(points, N);
+            minb = getZMin(points, N);
+            maxb = getZMax(points, N);
+            break;
+        case XZ:
+            mina = getXMin(points, N);
+            maxa = getXMax(points, N);
+            minb = getZMin(points, N);
+            maxb = getZMax(points, N);
+            break;
+    }
+    if (strstr(filenameOk, "QueSoy2.obj") == 0)
+        getViewportMatrix(mina, maxa, minb, maxb, window, plane, projectionMatrix);
     orthonormalMatrix(projectionMatrix, plane);
 
     for (int i=0; i<N; i++)
@@ -207,6 +206,13 @@ void isometricProjection(struct Point* points, int N, int window)
     float projectionMatrix[4][4];
     identityMatrix(projectionMatrix);
     isometricMatrix(projectionMatrix, 1, 1, 1);
+    float mina, maxa, minb, maxb;
+    mina = getXMin(points, N);
+    maxa = getXMax(points, N);
+    minb = getYMin(points, N);
+    maxb = getYMax(points, N);
+    if (strstr(filenameOk, "QueSoy2.obj") == 0)
+        getViewportMatrix(mina, maxa, minb, maxb, window, XY, projectionMatrix);
 
     for (int i=0; i<N; i++)
     {
@@ -237,20 +243,36 @@ void drawPoint(struct Point a, int window)
             dx = 0.5;
             dy = -0.5;
             break;
-        
         case 4:
-            dx = -1;
-            dy = 0;
+            dx = -0.6;
+            dy = 0.4;
             break;
-
         case 5:
-            dx = -0.1;
+            dx = 0.6;
+            dy = 1.0;
+            break;
+        case 6:
+            dx = -0.6;
+            dy = -0;
+            break;
+        case 7:
+            dx = 0;
+            dy = -0.9;
+            break;
+        case 8:
+            dx = -1;
             dy = 0;
             break;
-        
-        case 6:
-            dx = -1;
-            dy = -1;
+        case 9:
+            dx=-0.1;
+            break;
+        case 10:
+            dx=-1;
+            dy=-1;
+            break;
+        case 11:
+            dx=0.5;
+            dy=-0.5;
             break;
     }
 
@@ -270,8 +292,6 @@ void copyMatrix(float A[4][4], float B[4][4])
         for (int j=0; j<4; j++)
             B[i][j] = A[i][j];
 }
-
-
 
 struct Point matrixVectorMultiplication(float A[4][4], struct Point b)
 {
@@ -311,37 +331,91 @@ struct Triangle* readTrianglesFromFile(const char* filename)
         }
         fclose(file);
         return triangles;
-    } else if (strstr(filename, ".obj")!=NULL){
-        char line[256];
-        int vertices = verticesInObj(filename);
-        int faces = facesInObj(filename);
-        printf("Vertices: %d, faces: %d", vertices, faces);
-        struct Triangle* triangles = malloc(sizeof(struct Triangle) * faces);
-        struct Point* points = malloc(sizeof(struct Point)*vertices);
-        int npoints = 0;
-        int ntriangles = 0;
-        while (fgets(line, sizeof(line), file)) {
-        //printf("Line: %s", line);
-        if (line[0] == 'v' && line[1] == ' ') {
-            int result = sscanf(line + 2, "%f %f %f", &points[npoints].x, &points[npoints].y, &points[npoints].z);
-            npoints++;
-        } else if (line[0] == 'f' && line[1] == ' ') {
-            int p1, p2, p3;
-            int result = sscanf(line + 2, "%d %d %d", &p1, &p2, &p3);
-            p1--; p2--; p3--;
-            struct Triangle triangle = {points[p1],points[p2],points[p3]};
-            triangles[ntriangles]=triangle;
-            ntriangles++;
-        } else {
-            printf("Skipping line: %s", line);
-        }
-        }   
-        free(points);
-        return triangles;
     }
 
     printf("File format not supported: %s\n", filename);
     return NULL;
+}
+
+void readPointsFromObj(const char* filename){
+    FILE* file = fopen(filename, "r");
+    if (file == NULL)
+    {
+        printf("Failed to open file: %s\n", filename);
+        return;
+    }
+    char line[256];
+    int vertices = verticesInObj(filename);
+    int faces = facesInObj(filename);
+    pointsMemory = malloc(sizeof(struct Point) * (vertices + faces*3));
+    pointsCount = 0;
+
+    while (fgets(line, sizeof(line), file))
+    {
+        if(line[0]=='#'){
+            continue;
+        }
+        if (line[0]=='f'){
+            int a,b,c;
+            int result = sscanf(line, "f %d %d %d", &a, &b, &c);
+            if (result == 3)
+            {
+                pointsMemory[pointsCount] = pointsMemory[a-1];
+                pointsCount++;
+                pointsMemory[pointsCount] = pointsMemory[b-1];
+                pointsCount++;
+                pointsMemory[pointsCount] = pointsMemory[c-1];
+                pointsCount++;
+            }
+        }
+
+        if (line[0] =='v'){
+            struct Point a;
+            int result = sscanf(line, "v %f %f %f", &a.x, &a.y, &a.z);
+            a.x = a.x;
+            a.y = a.y;
+            a.z = a.z;
+            if (result == 3)
+            {
+                pointsMemory[pointsCount] = a;
+                pointsCount++;
+            }
+        }
+    }
+    fclose(file);
+}
+
+int readOnlyVertices(const char* filename){
+    FILE* file = fopen(filename, "r");
+    if (file == NULL)
+    {
+        printf("Failed to open file: %s\n", filename);
+        return;
+    }
+    char line[256];
+    int vertices = verticesInObj(filename);
+    pointsMemory = malloc(sizeof(struct Point) * (vertices));
+    pointsCount = 0;
+    while (fgets(line, sizeof(line), file))
+    {
+        if( (line[0]=='#') || (line[0]=='f')){
+            continue;
+        }
+
+        if (line[0] =='v'){
+            struct Point a;
+            int result = sscanf(line, "v %f %f %f", &a.x, &a.y, &a.z);
+            a.x = a.x;
+            a.y = a.y;
+            a.z = a.z;
+            if (result == 3)
+            {
+                pointsMemory[pointsCount] = a;
+                pointsCount++;
+            }
+        }
+    }
+    fclose(file);
 }
 
 int facesInObj(const char* filename){
@@ -362,6 +436,7 @@ int facesInObj(const char* filename){
     fclose(file);
     return counter;
 }
+
 int verticesInObj(const char* filename){
     FILE* file = fopen(filename, "r");
     if (file == NULL)
@@ -379,6 +454,78 @@ int verticesInObj(const char* filename){
     }
     fclose(file);
     return counter;
+}
+
+float getXMin(struct Point* points, int N){
+    float min = points[0].x;
+    for (int i=0; i<N; i++)
+    {
+        struct Point point = points[i];
+        float x = point.x;
+        if (x < min)
+            min = x;
+    }
+    return min;
+}
+
+float getXMax(struct Point* points, int N){
+    float max = points[0].x;
+    for (int i=0; i<N; i++)
+    {
+        struct Point point = points[i];
+        float x = point.x;
+        if (x > max)
+            max = x;
+    }
+    return max;
+}
+
+float getYMin(struct Point* points, int N){
+    float min = points[0].y;
+    for (int i=0; i<N; i++)
+    {
+        struct Point point = points[i];
+        float y = point.y;
+        if (y < min)
+            min = y;
+    }
+    return min;
+}
+
+float getYMax(struct Point* points, int N){
+    float max = points[0].y;
+    for (int i=0; i<N; i++)
+    {
+        struct Point point = points[i];
+        float y = point.y;
+        if (y > max)
+            max = y;
+    }
+    return max;
+}
+
+float getZMin(struct Point* points, int N){
+    float min = points[0].z;
+    for (int i=0; i<N; i++)
+    {
+        struct Point point = points[i];
+        float z = point.z;
+        if (z < min)
+            min = z;
+    }
+    return min;
+}
+
+float getZMax(struct Point* points, int N){
+    float max = points[0].z;
+    for (int i=0; i<N; i++)
+    {
+        struct Point point = points[i];
+        float z = point.z;
+        if (z > max)
+            max = z;
+    }
+    return max;
 }
 
 
@@ -410,7 +557,18 @@ void (*getDisplayFunc(const char* filename))(void)
 
     if (strstr(filename, ".obj") != NULL)
     {
+        filenameOk = filename;
         return displayObj;
+    }
+
+    if (strstr(filename, "geographos.tab") != NULL)
+    {
+        return displayGeo;
+    }
+
+    if (strstr(filename, "eros") != NULL)
+    {
+        return displayEros;
     }
 
     printf("File format not supported: %s\n", filename);
