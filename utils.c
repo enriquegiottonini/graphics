@@ -1,7 +1,9 @@
 #include "utils.h"
 
 struct Triangle* trianglesMemory;
+struct Point* pointsMemory;
 int trianglesCount;
+int pointsCount;
 
 void displayTri()
 {
@@ -15,10 +17,24 @@ void displayTri()
         trianglesCount = linesInFile("OBJETOS-3D/itokawa_f0049152.tri");
     }
 
-    project_onto_xy(trianglesMemory, trianglesCount, 1);
-    project_onto_xz(trianglesMemory, trianglesCount, 2);
-    project_onto_yz(trianglesMemory, trianglesCount, 3);
-    proyect_isometric(trianglesMemory, trianglesCount, 4);
+    if (pointsMemory == NULL && trianglesMemory != NULL)
+    {
+        pointsMemory = malloc(sizeof(struct Point) * trianglesCount * 3);
+        for (int i=0; i<trianglesCount; i++)
+        {
+            struct Triangle triangle = trianglesMemory[i];
+            pointsMemory[i*3] = triangle.a;
+            pointsMemory[i*3 + 1] = triangle.b;
+            pointsMemory[i*3 + 2] = triangle.c;
+        }
+
+        pointsCount = trianglesCount * 3;
+    }
+
+    project_onto_plane(pointsMemory, pointsCount, TOP_LEFT, XY);
+    project_onto_plane(pointsMemory, pointsCount, TOP_RIGHT, YZ);
+    project_onto_plane(pointsMemory, pointsCount, BOTTOM_LEFT, XZ);
+    isometricProjection(pointsMemory, pointsCount, BOTTOM_RIGHT);
 
     glEnd();
 	glutSwapBuffers();
@@ -31,129 +47,164 @@ float identityMatrix(float matrix[4][4])
             matrix[i][j] = (i == j) ? 1 : 0;
 }
 
-float orthonormalMatrix(float A[4][4], int plano)
+float orthonormalMatrix(float A[4][4], int plane)
 {
-    float t[16] = {
-        (plano == 2 ? 0 : 1), (plano == 2 ? 1 : 0), 0, 0,
-        0, (plano == 0 ? 1 : 0), (plano == 0 ? 0 : 1), 0,
-        0, 0, 0, 0,
-        0, 0, 0, 1
-    };
+	float t[4][4] = {
+		 {(plane==XZ?0:1), (plane==XZ?1:0),               0, 0},
+		 {              0, (plane==XY?1:0), (plane==XY?0:1), 0},
+		 {              0,               0,               0, 0},
+		 {              0,               0,               0, 1}
+	};
 
-    for (int i=0; i<4; i++)
-        for (int j=0; j<4; j++)
-            A[i][j] = t[i*4 + j];
+    float copyA[4][4];
+    copyMatrix(A, copyA);
+
+    matrixMultiplication(copyA, t, A);
 }
 
 void isometricMatrix(float A[4][4], float a, float b, float c){
-	float I[16] = {
-		c/sqrt(a*a+c*c), 0, -a/sqrt(a*a+c*c), 0,
-		-a*b/sqrt((a*a+c*c)*(a*a+b*b+c*c)), sqrt((a*a+c*c)/(a*a+b*b+c*c)), -c*b/sqrt((a*a+c*c)*(a*a+b*b+c*c)), 0,
-		0,0,0,0,
-		0,0,0,1
-	};
-    for (int i=0; i<4; i++)
-        for (int j=0; j<4; j++)
-            A[i][j] = I[i*4 + j];
+    float I[4][4] = {
+        {c/sqrt(a*a+c*c), 0, -a/sqrt(a*a+c*c), 0},
+        {-a*b/sqrt((a*a+c*c)*(a*a+b*b+c*c)), sqrt((a*a+c*c)/(a*a+b*b+c*c)), -c*b/sqrt((a*a+c*c)*(a*a+b*b+c*c)), 0},
+        {0,0,0,0},
+        {0,0,0,1}
+    };
+
+    float copyA[4][4];
+    copyMatrix(A, copyA);
+
+    matrixMultiplication(copyA, I, A);
 }
 
-void project_onto_xy(struct Triangle* triangles, int lines, int window)
+void getMinMaxInPlane(struct Point* points, int N, int plane, struct Point min, struct Point max)
+{
+    min.x = min.y = 1000000;
+    max.x = max.y = -1000000;
+
+    for (int i=0; i<N; i++)
+    {
+        struct Point point = points[i];
+        switch (plane)
+        {
+            case XY:
+                if (point.x < min.x) min.x = point.x;
+                if (point.y < min.y) min.y = point.y;
+                if (point.x > max.x) max.x = point.x;
+                if (point.y > max.y) max.y = point.y;
+                break;
+            case YZ:
+                if (point.y < min.x) min.x = point.y;
+                if (point.z < min.y) min.y = point.z;
+                if (point.y > max.x) max.x = point.y;
+                if (point.z > max.y) max.y = point.z;
+                break;
+            case XZ:
+                if (point.x < min.x) min.x = point.x;
+                if (point.z < min.y) min.y = point.z;
+                if (point.x > max.x) max.x = point.x;
+                if (point.z > max.y) max.y = point.z;
+                break;
+        }
+    }
+}
+
+void getViewportMatrix(struct Point min, struct Point max, int plane, float viewportMatrix[4][4])
+{
+    float dx, dy;
+    float centerx = (max.x + min.x) / 2;
+    float centery = (max.y + min.y) / 2;
+
+    float sx = 1.0 / (max.x - min.x);
+    float sy = 1.0 / (max.y - min.y);
+
+    float T[4][4] = {
+        {1, 0, 0, -centerx},
+        {0, 1, 0, -centery},
+        {0, 0, 1, 0},
+        {0, 0, 0, 1}
+    };
+
+    float S[4][4] = {
+        {sx, 0, 0, 0},
+        {0, sy, 0, 0},
+        {0, 0, 1, 0},
+        {0, 0, 0, 1}
+    };
+
+    float T2[4][4] = {
+        {1, 0, 0, centerx},
+        {0, 1, 0, centery},
+        {0, 0, 1, 0},
+        {0, 0, 0, 1}
+    };
+
+    float TS[4][4];
+    matrixMultiplication(T, S, TS);
+
+    float TST2[4][4];
+    matrixMultiplication(TS, T2, TST2);
+
+    float copyViewportMatrix[4][4];
+    copyMatrix(viewportMatrix, copyViewportMatrix);
+    matrixMultiplication(copyViewportMatrix, TST2, viewportMatrix);
+}
+
+void project_onto_plane(struct Point* points, int N, int window, int plane)
 {
     float projectionMatrix[4][4];
     identityMatrix(projectionMatrix);
-    orthonormalMatrix(projectionMatrix, 0);
 
     struct Point min, max;
+    getMinMaxInPlane(points, N, plane, min, max);
+    //getViewportMatrix(min, max, plane, projectionMatrix);
+    orthonormalMatrix(projectionMatrix, plane);
 
-
-    for (int i=0; i<lines; i++)
+    for (int i=0; i<N; i++)
     {
-        struct Triangle triangle = triangles[i];
-        struct Point a = matrixVectorMultiplication(projectionMatrix, triangle.a);
-        struct Point b = matrixVectorMultiplication(projectionMatrix, triangle.b);
-        struct Point c = matrixVectorMultiplication(projectionMatrix, triangle.c);
-        drawTriangle(a, b, c, window);
+        struct Point original = points[i];
+        struct Point projected = matrixVectorMultiplication(projectionMatrix, original);
+        drawPoint(projected, window);
     }
 }
 
-
-void project_onto_xz(struct Triangle* triangles, int lines, int window)
-{
-    float projectionMatrix[4][4];
-    identityMatrix(projectionMatrix);
-    orthonormalMatrix(projectionMatrix, 2);
-
-    for (int i=0; i<lines; i++)
-    {
-        struct Triangle triangle = triangles[i];
-        struct Point a = matrixVectorMultiplication(projectionMatrix, triangle.a);
-        struct Point b = matrixVectorMultiplication(projectionMatrix, triangle.b);
-        struct Point c = matrixVectorMultiplication(projectionMatrix, triangle.c);
-        drawTriangle(a, b, c, window);
-    }
-}
-
-void project_onto_yz(struct Triangle* triangles, int lines, int window)
-{
-    float projectionMatrix[4][4];
-    identityMatrix(projectionMatrix);
-    orthonormalMatrix(projectionMatrix, 1);
-
-    for (int i=0; i<lines; i++)
-    {
-        struct Triangle triangle = triangles[i];
-        struct Point a = matrixVectorMultiplication(projectionMatrix, triangle.a);
-        struct Point b = matrixVectorMultiplication(projectionMatrix, triangle.b);
-        struct Point c = matrixVectorMultiplication(projectionMatrix, triangle.c);
-        drawTriangle(a, b, c, window);
-    }
-}
-
-
-void proyect_isometric(struct Triangle* triangles, int lines, int window)
+void isometricProjection(struct Point* points, int N, int window)
 {
     float projectionMatrix[4][4];
     identityMatrix(projectionMatrix);
     isometricMatrix(projectionMatrix, 1, 1, 1);
 
-    for (int i=0; i<lines; i++)
+    for (int i=0; i<N; i++)
     {
-        struct Triangle triangle = triangles[i];
-        struct Point a = matrixVectorMultiplication(projectionMatrix, triangle.a);
-        struct Point b = matrixVectorMultiplication(projectionMatrix, triangle.b);
-        struct Point c = matrixVectorMultiplication(projectionMatrix, triangle.c);
-        drawTriangle(a, b, c, window);
+        struct Point original = points[i];
+        struct Point projected = matrixVectorMultiplication(projectionMatrix, original);
+        drawPoint(projected, window);
     }
 }
 
-
-void drawTriangle(struct Point a, struct Point b, struct Point c, int window)
+void drawPoint(struct Point a, int window)
 {
     float dx, dy;
     switch (window)
     {
-        case 1:
+        case TOP_LEFT:
             dx = -0.5;
             dy = 0.5;
             break;
-        case 2:
+        case TOP_RIGHT:
             dx = 0.5;
             dy = 0.5;
             break;
-        case 3:
+        case BOTTOM_LEFT:
             dx = -0.5;
             dy = -0.5;
             break;
-        case 4:
+        case BOTTOM_RIGHT:
             dx = 0.5;
             dy = -0.5;
             break;
     }
 
     glVertex3f(a.x + dx, a.y + dy, 0);
-    glVertex3f(b.x + dx, b.y + dy, 0);
-    glVertex3f(c.x + dx, c.y + dy, 0);
-
 }
 
 void matrixMultiplication(float A[4][4], float B[4][4], float C[4][4])
@@ -162,6 +213,15 @@ void matrixMultiplication(float A[4][4], float B[4][4], float C[4][4])
         for (int j=0; j<4; j++)
             C[i][j] = A[i][0]*B[0][j] + A[i][1]*B[1][j] + A[i][2]*B[2][j] + A[i][3]*B[3][j];
 }
+
+void copyMatrix(float A[4][4], float B[4][4])
+{
+    for (int i=0; i<4; i++)
+        for (int j=0; j<4; j++)
+            B[i][j] = A[i][j];
+}
+
+
 
 struct Point matrixVectorMultiplication(float A[4][4], struct Point b)
 {

@@ -24,6 +24,21 @@ struct Triangle
     struct Point c;
 };
 
+enum Window
+{
+    TOP_LEFT,
+    TOP_RIGHT,
+    BOTTOM_LEFT,
+    BOTTOM_RIGHT
+};
+
+enum Plane
+{
+    XY,
+    YZ,
+    XZ
+};
+
 struct Triangle* readTrianglesFromFile(const char* filename);
 int linesInFile(const char* filename);
 void displayTri(void);
@@ -32,10 +47,8 @@ void endTri(void);
 
 void matrixMultiplication(float A[4][4], float B[4][4], float C[4][4]);
 struct Point matrixVectorMultiplication(float A[4][4], struct Point b);
-void project_onto_xy(struct Triangle* triangles, int lines, int window);
-void project_onto_yz(struct Triangle* triangles, int lines, int window);
-void project_onto_xz(struct Triangle* triangles, int lines, int window);
-void drawTriangle(struct Point a, struct Point b, struct Point c, int window);
-
+void project_onto_plane(struct Point* points, int N, int window, int plane);
+void drawPoint(struct Point a, int window);
+void copyMatrix(float A[4][4], float B[4][4]);
 
 #endif
