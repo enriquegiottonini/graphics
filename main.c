@@ -11,8 +11,9 @@ int main (int argc, char** argv)
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     const char* itokawa = "OBJETOS-3D/itokawa_f0049152.tri";
+    const char* cactus = "OBJETOS-3D/QueSoy2.obj";
 
-    const char* filename = itokawa;
+    const char* filename = cactus;
     void (*displayFunc)(void) = getDisplayFunc(filename);
     
     glutDisplayFunc(displayFunc);

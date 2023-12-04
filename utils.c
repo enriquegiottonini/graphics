@@ -40,6 +40,41 @@ void displayTri()
 	glutSwapBuffers();
 }
 
+void displayObj()
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glBegin(GL_LINES);
+    glColor3f(0.0f, 0.0f, 0.0f);
+
+    if (trianglesMemory == NULL)
+    {
+        trianglesMemory = readTrianglesFromFile("OBJETOS-3D/QueSoy2.obj");
+        trianglesCount = linesInFile("OBJETOS-3D/QueSoy2.obj");
+    }
+
+    if (pointsMemory == NULL && trianglesMemory != NULL)
+    {
+        pointsMemory = malloc(sizeof(struct Point) * trianglesCount * 3);
+        for (int i=0; i<trianglesCount; i++)
+        {
+            struct Triangle triangle = trianglesMemory[i];
+            pointsMemory[i*3] = triangle.a;
+            pointsMemory[i*3 + 1] = triangle.b;
+            pointsMemory[i*3 + 2] = triangle.c;
+        }
+
+        pointsCount = trianglesCount * 3;
+    }
+
+    project_onto_plane(pointsMemory, pointsCount, 4, XY);
+    project_onto_plane(pointsMemory, pointsCount, 5, YZ);
+    project_onto_plane(pointsMemory, pointsCount, 6, XZ);
+    isometricProjection(pointsMemory, pointsCount, BOTTOM_RIGHT);
+
+    glEnd();
+    glutSwapBuffers();
+}
+
 float identityMatrix(float matrix[4][4])
 {
     for (int i=0; i<4; i++)
@@ -202,6 +237,21 @@ void drawPoint(struct Point a, int window)
             dx = 0.5;
             dy = -0.5;
             break;
+        
+        case 4:
+            dx = -1;
+            dy = 0;
+            break;
+
+        case 5:
+            dx = -0.1;
+            dy = 0;
+            break;
+        
+        case 6:
+            dx = -1;
+            dy = -1;
+            break;
     }
 
     glVertex3f(a.x + dx, a.y + dy, 0);
@@ -261,10 +311,74 @@ struct Triangle* readTrianglesFromFile(const char* filename)
         }
         fclose(file);
         return triangles;
+    } else if (strstr(filename, ".obj")!=NULL){
+        char line[256];
+        int vertices = verticesInObj(filename);
+        int faces = facesInObj(filename);
+        printf("Vertices: %d, faces: %d", vertices, faces);
+        struct Triangle* triangles = malloc(sizeof(struct Triangle) * faces);
+        struct Point* points = malloc(sizeof(struct Point)*vertices);
+        int npoints = 0;
+        int ntriangles = 0;
+        while (fgets(line, sizeof(line), file)) {
+        //printf("Line: %s", line);
+        if (line[0] == 'v' && line[1] == ' ') {
+            int result = sscanf(line + 2, "%f %f %f", &points[npoints].x, &points[npoints].y, &points[npoints].z);
+            npoints++;
+        } else if (line[0] == 'f' && line[1] == ' ') {
+            int p1, p2, p3;
+            int result = sscanf(line + 2, "%d %d %d", &p1, &p2, &p3);
+            p1--; p2--; p3--;
+            struct Triangle triangle = {points[p1],points[p2],points[p3]};
+            triangles[ntriangles]=triangle;
+            ntriangles++;
+        } else {
+            printf("Skipping line: %s", line);
+        }
+        }   
+        free(points);
+        return triangles;
     }
 
     printf("File format not supported: %s\n", filename);
     return NULL;
+}
+
+int facesInObj(const char* filename){
+    FILE* file = fopen(filename, "r");
+    if (file == NULL)
+    {
+        printf("Failed to open file: %s\n", filename);
+        return;
+    }
+    char line[256];
+    int counter = 0;
+    while (fgets(line, sizeof(line), file))
+    {
+        if(line[0]=='f'){
+            counter++;
+        }
+    }
+    fclose(file);
+    return counter;
+}
+int verticesInObj(const char* filename){
+    FILE* file = fopen(filename, "r");
+    if (file == NULL)
+    {
+        printf("Failed to open file: %s\n", filename);
+        return;
+    }
+    char line[256];
+    int counter = 0;
+    while (fgets(line, sizeof(line), file))
+    {
+        if(line[0]=='v'){
+            counter++;
+        }
+    }
+    fclose(file);
+    return counter;
 }
 
 
@@ -292,6 +406,11 @@ void (*getDisplayFunc(const char* filename))(void)
     if (strstr(filename, ".tri") != NULL)
     {
         return displayTri;
+    }
+
+    if (strstr(filename, ".obj") != NULL)
+    {
+        return displayObj;
     }
 
     printf("File format not supported: %s\n", filename);
