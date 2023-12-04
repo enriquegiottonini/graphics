@@ -34,10 +34,10 @@ void displayObj(){
         trianglesCount = facesInObj("OBJETOS-3D/QueSoy2.obj");
     }
 
-    project_onto_xy(trianglesMemory, trianglesCount, 1);
-    project_onto_xz(trianglesMemory, trianglesCount, 2);
-    project_onto_yz(trianglesMemory, trianglesCount, 3);
-    proyect_isometric(trianglesMemory, trianglesCount, 4);
+    project_onto_xy(trianglesMemory, trianglesCount, 5);
+    project_onto_xz(trianglesMemory, trianglesCount, 6);
+    project_onto_yz(trianglesMemory, trianglesCount, 7);
+    proyect_isometric(trianglesMemory, trianglesCount, 8);
 
     glEnd();
 	glutSwapBuffers();
@@ -166,6 +166,22 @@ void drawTriangle(struct Point a, struct Point b, struct Point c, int window)
             dx = 0.5;
             dy = -0.5;
             break;
+        case 5:
+            dx = -1;
+            dy = 0;
+            break;
+        case 6:
+            dx=-0.1;
+            break;
+        case 7:
+            dx=-1;
+            dy=-1;
+            break;
+        case 8:
+            dx=0.5;
+            dy=-0.5;
+            break;
+
     }
 
     glVertex3f(a.x + dx, a.y + dy, 0);
