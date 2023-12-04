@@ -10,7 +10,7 @@ int main (int argc, char** argv)
 	glutCreateWindow("Proyecto Final");
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
-    const char* itokawa = "OBJETOS-3D/itokawa_f0049152.tri";
+    const char* itokawa = "OBJETOS-3D/QueSoy2.obj";
 
     const char* filename = itokawa;
     void (*displayFunc)(void) = getDisplayFunc(filename);

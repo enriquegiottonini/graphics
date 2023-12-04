@@ -26,6 +26,8 @@ struct Triangle
 
 struct Triangle* readTrianglesFromFile(const char* filename);
 int linesInFile(const char* filename);
+int facesInObj(const char* filename);
+int verticesInObj(const char* filename);
 void displayTri(void);
 void (*getDisplayFunc(const char* filename))(void);
 void endTri(void);
