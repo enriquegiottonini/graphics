@@ -47,7 +47,7 @@ void endTri(void);
 
 void matrixMultiplication(float A[4][4], float B[4][4], float C[4][4]);
 struct Point matrixVectorMultiplication(float A[4][4], struct Point b);
-void project_onto_plane(struct Point* points, int N, int window, int plane);
+void project_onto_plane(struct Point* points, int N, int window, int plane, float scale);
 void drawPoint(struct Point a, int window);
 void copyMatrix(float A[4][4], float B[4][4]);
 void readPointsFromObj(const char* filename);

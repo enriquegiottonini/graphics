@@ -1,5 +1,9 @@
 // To run: make run
-// To test: make test
+// Authors: Enrique Giottonini, Miguel Navarro
+// Graficacion por computadora
+
+// Para cambiar de archivo se coloca la variable
+// en el puntero 'filename'
 #include "utils.h"
 
 int main (int argc, char** argv)
@@ -17,8 +21,7 @@ int main (int argc, char** argv)
     const char* eros = "OBJETOS-3D/eros022540.tab";
     const char* mathil = "OBJETOS-3D/253mathilde.tab";
 
-
-    const char* filename = itokawa;
+    const char* filename = itokawa; // CAMBIAR DE ARCHIVO PARA LEER
     void (*displayFunc)(void) = getDisplayFunc(filename);
     
     glutDisplayFunc(displayFunc);

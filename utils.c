@@ -32,10 +32,10 @@ void displayTri()
         pointsCount = trianglesCount * 3;
     }
 
-    project_onto_plane(pointsMemory, pointsCount, TOP_LEFT, XY);
-    project_onto_plane(pointsMemory, pointsCount, TOP_RIGHT, YZ);
-    project_onto_plane(pointsMemory, pointsCount, BOTTOM_LEFT, XZ);
-    isometricProjection(pointsMemory, pointsCount, BOTTOM_RIGHT);
+    project_onto_plane(pointsMemory, pointsCount, TOP_LEFT, XY, 1.5);
+    project_onto_plane(pointsMemory, pointsCount, TOP_RIGHT, YZ, 2.5);
+    project_onto_plane(pointsMemory, pointsCount, BOTTOM_LEFT, XZ, 1.5);
+    isometricProjection(pointsMemory, pointsCount, BOTTOM_RIGHT, 1);
 
     glEnd();
 	glutSwapBuffers();
@@ -52,15 +52,15 @@ void displayObj()
     }
 
     if (strcmp(filenameOk, "OBJETOS-3D/QueSoy1.obj") == 0){
-        project_onto_plane(pointsMemory, pointsCount, 4, XY);
-        project_onto_plane(pointsMemory, pointsCount, 5, YZ);
-        project_onto_plane(pointsMemory, pointsCount, 6, XZ);
-        isometricProjection(pointsMemory, pointsCount, 7);
+        project_onto_plane(pointsMemory, pointsCount, 4, XY, 1.5);
+        project_onto_plane(pointsMemory, pointsCount, 5, YZ, 1.5);
+        project_onto_plane(pointsMemory, pointsCount, 6, XZ, 1.5);
+        isometricProjection(pointsMemory, pointsCount, 7, 1);
     } else {
-        project_onto_plane(pointsMemory, pointsCount, 8, XY);
-        project_onto_plane(pointsMemory, pointsCount, 9, YZ);
-        project_onto_plane(pointsMemory, pointsCount, 10, XZ);
-        isometricProjection(pointsMemory, pointsCount, 11);
+        project_onto_plane(pointsMemory, pointsCount, 8, XY, 1);
+        project_onto_plane(pointsMemory, pointsCount, 9, YZ, 1);
+        project_onto_plane(pointsMemory, pointsCount, 10, XZ, 1);
+        isometricProjection(pointsMemory, pointsCount, 11, 1);
     }
 
     glEnd();
@@ -76,10 +76,10 @@ void displayEros()
     if (pointsMemory == NULL) {
         readPointsFromObj("OBJETOS-3D/eros022540.tab");
     }
-    project_onto_plane(pointsMemory, pointsCount, 4, XY);
-    project_onto_plane(pointsMemory, pointsCount, 5, YZ);
-    project_onto_plane(pointsMemory, pointsCount, 6, XZ);
-    isometricProjection(pointsMemory, pointsCount, BOTTOM_RIGHT);
+    project_onto_plane(pointsMemory, pointsCount, TOP_LEFT, XY, 1.6);
+    project_onto_plane(pointsMemory, pointsCount, 13, YZ, 2.3);
+    project_onto_plane(pointsMemory, pointsCount, 14, XZ, 1.3);
+    isometricProjection(pointsMemory, pointsCount, 15, 1);
 
     glEnd();
     glutSwapBuffers();
@@ -98,10 +98,10 @@ void displayGeo()
 
     printf("%d\n", pointsCount);
 
-    project_onto_plane(pointsMemory, pointsCount, 4, XY);
-    project_onto_plane(pointsMemory, pointsCount, 5, YZ);
-    project_onto_plane(pointsMemory, pointsCount, 6, XZ);
-    isometricProjection(pointsMemory, pointsCount, BOTTOM_RIGHT);
+    project_onto_plane(pointsMemory, pointsCount, 12, XY, 1.5);
+    project_onto_plane(pointsMemory, pointsCount, 13, YZ, 2.5);
+    project_onto_plane(pointsMemory, pointsCount, 14, XZ, 1.5);
+    isometricProjection(pointsMemory, pointsCount, 15, 1);
 
     glEnd();
     glutSwapBuffers();
@@ -144,12 +144,12 @@ void isometricMatrix(float A[4][4], float a, float b, float c){
     matrixMultiplication(copyA, I, A);
 }
 
-void getViewportMatrix(float mina, float maxa, float minb, float maxb, int window, int plane, float matrix[4][4])
+void getViewportMatrix(float mina, float maxa, float minb, float maxb, int window, int plane, float matrix[4][4], float scale)
 {
     float tx = -mina;
     float ty = -minb;
-    float sx = 1 / (maxa - mina);
-    float sy = 1 /  (maxb - minb);
+    float sx = 1 / (scale * (maxa - mina));
+    float sy = 1 /  (scale * (maxb - minb));
 
     float matrix1[4][4] = {
         {sx, 0, 0, 0},
@@ -163,7 +163,7 @@ void getViewportMatrix(float mina, float maxa, float minb, float maxb, int windo
     matrixMultiplication(matrix1, matrixCopy, matrix);
 }
 
-void project_onto_plane(struct Point* points, int N, int window, int plane)
+void project_onto_plane(struct Point* points, int N, int window, int plane, float scale)
 {
     float projectionMatrix[4][4];
     identityMatrix(projectionMatrix);
@@ -190,7 +190,7 @@ void project_onto_plane(struct Point* points, int N, int window, int plane)
             break;
     }
     if (strstr(filenameOk, "QueSoy2.obj") == 0)
-        getViewportMatrix(mina, maxa, minb, maxb, window, plane, projectionMatrix);
+        getViewportMatrix(mina, maxa, minb, maxb, window, plane, projectionMatrix, scale);
     orthonormalMatrix(projectionMatrix, plane);
 
     for (int i=0; i<N; i++)
@@ -201,7 +201,7 @@ void project_onto_plane(struct Point* points, int N, int window, int plane)
     }
 }
 
-void isometricProjection(struct Point* points, int N, int window)
+void isometricProjection(struct Point* points, int N, int window, float scale)
 {
     float projectionMatrix[4][4];
     identityMatrix(projectionMatrix);
@@ -212,7 +212,7 @@ void isometricProjection(struct Point* points, int N, int window)
     minb = getYMin(points, N);
     maxb = getYMax(points, N);
     if (strstr(filenameOk, "QueSoy2.obj") == 0)
-        getViewportMatrix(mina, maxa, minb, maxb, window, XY, projectionMatrix);
+        getViewportMatrix(mina, maxa, minb, maxb, window, XY, projectionMatrix, 1.5);
 
     for (int i=0; i<N; i++)
     {
@@ -244,20 +244,20 @@ void drawPoint(struct Point a, int window)
             dy = -0.5;
             break;
         case 4:
-            dx = -0.6;
+            dx = -0.4;
             dy = 0.4;
             break;
         case 5:
-            dx = 0.6;
-            dy = 1.0;
+            dx = 0.4;
+            dy = 0.8;
             break;
         case 6:
-            dx = -0.6;
+            dx = -0.4;
             dy = -0;
             break;
         case 7:
-            dx = 0;
-            dy = -0.9;
+            dx = 0.2;
+            dy = -0.6;
             break;
         case 8:
             dx = -1;
@@ -271,6 +271,22 @@ void drawPoint(struct Point a, int window)
             dy=-1;
             break;
         case 11:
+            dx=0.5;
+            dy=-0.5;
+            break;
+        case 12:
+            dx=-0.5;
+            dy=0.5;
+            break;
+        case 13:
+            dx=0.4;
+            dy=0.5;
+            break;
+        case 14:
+            dx=-0.5;
+            dy=-0.5;
+            break;
+        case 15:
             dx=0.5;
             dy=-0.5;
             break;
